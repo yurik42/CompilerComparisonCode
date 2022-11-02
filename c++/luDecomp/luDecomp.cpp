@@ -3,7 +3,7 @@
 #else
 #include <cmath>
 #endif
-#include <stdlib.h>
+#include <cstdlib>
 #include <malloc.h>
 #include <cstdio>
 #include <omp.h>
@@ -49,9 +49,15 @@ double *A, *L, *U;
   L = static_cast<double*>(_mm_malloc(n*lda*sizeof(double), 64));
   U = static_cast<double*>(_mm_malloc(n*lda*sizeof(double), 64));
 #else
+# ifdef USE_POSIX_MEMALIGN
   posix_memalign((void **)&A, 4096, n*lda*sizeof(double));
   posix_memalign((void **)&L, 4096, n*lda*sizeof(double));
   posix_memalign((void **)&U, 4096, n*lda*sizeof(double));
+# else
+  A = static_cast<double*>(aligned_alloc(4096, n * lda * sizeof(double)));
+  L = static_cast<double*>(aligned_alloc(4096, n * lda * sizeof(double)));
+  U = static_cast<double*>(aligned_alloc(4096, n * lda * sizeof(double)));
+#endif
 #endif
   for (int i = 0, arrSize = n*lda; i < arrSize; ++i) {
     A[i] = 0.0f;
@@ -206,14 +212,23 @@ int main(const int argc, const char** argv) {
   dataA = (char*)_mm_malloc(containerSize*nMatrices, 64);
   scratch = (double*)_mm_malloc(sizeof(double)*(num_threads*cache_line_length + n*lda) + 64, 64);
 #else
+# ifdef USE_POSIX_MEMALIGN
   posix_memalign((void **)&dataA, 4096, containerSize*nMatrices);
   posix_memalign((void **)&scratch, 4096, sizeof(double)*(num_threads*cache_line_length + n*lda) + 64);
+# else
+  dataA = (char*)aligned_alloc(4096, containerSize * nMatrices);
+  scratch = (double*)aligned_alloc(4096, sizeof(double) * (num_threads * cache_line_length + n * lda) + 64);
+# endif
 #endif
 #endif
 #ifdef __INTEL_COMPILER
   referenceMatrix = static_cast<double*>(_mm_malloc(n*lda*sizeof(double), 64));
 #else
+# ifdef USE_POSIX_MEMALIGN
   posix_memalign((void **)&referenceMatrix, 4096, n*lda*sizeof(double));
+# else
+  referenceMatrix = static_cast<double*>(aligned_alloc(4096, n * lda * sizeof(double)));
+# endif
 #endif
 
   // Initialize matrices
